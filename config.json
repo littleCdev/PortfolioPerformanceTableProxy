@@ -1,0 +1,9 @@
+{
+    "proxy":{
+        "useproxy"    : false,
+        "user"        : "",
+        "password"    : "",
+        "host"        : "",
+        "port"        : ""
+    }
+}
