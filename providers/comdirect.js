@@ -57,7 +57,7 @@ console.log(sUrl);
         console.log(notationid);
 
         regex = /id="timestamp_keyelement" value="([0-9]{1,})"/gmi;
-        var match = regex.exec(body);
+        match = regex.exec(body);
 
         if(match == null || match[1] ===undefined){
             callback("ERROR");
@@ -68,12 +68,29 @@ console.log(sUrl);
         maxtime = maxtime.substr(0,10);
 
         console.log("maxtime: "+maxtime);
-        callback(null,notationid,maxtime);
+
+
+        regex = /<span class="text-size--medium outer-spacing--xxsmall-left outer-spacing--small-top">(.+)<\/span>/gmi;
+        match = regex.exec(body);
+
+        if(match == null || match[1] ===undefined){
+            callback("ERROR");
+            return;
+        }
+
+        if(match[1] === "%") {
+            console.log("is percent");
+            callback(null, notationid, maxtime, true);
+        }else
+            callback(null,notationid,maxtime,false);
+
+
+
 
     });
 }
 
-function getDataFromTable(res,notationId,maxtime) {
+function getDataFromTable(res,notationId,maxtime,isPercent) {
 
 
     var params = CHARTPARAMS.replace(/%MAXTIME%/gi,maxtime).replace(/%NOTATIONID%/gi,notationId);
@@ -101,7 +118,13 @@ function getDataFromTable(res,notationId,maxtime) {
         var regex = /{"dateTime":"([0-9]{2}.[0-9]{2}.[0-9]{4})","text":"([0-9]{1,},[0-9]{2})"}/gim;
         var match = [];
         while (match = regex.exec(sHtml)) {
-            sTableBody += ROW.replace(/%DATE%/ig,match[1]).replace(/%PRICE%/ig,match[2]);
+            var price = parseFloat(match[2].replace(/,/gi,"."));
+
+            if(isPercent)
+                price /= 100;
+
+            sTableBody += ROW.replace(/%DATE%/ig,match[1]).replace(/%PRICE%/ig,price);
+
         }
         var table = TABLE.replace(/%BODY%/ig,sTableBody);
 
@@ -113,12 +136,12 @@ function getDataFromTable(res,notationId,maxtime) {
 
 exports.getCreateTable = function (res,isin) {
 
-    getIdNotation(isin,function (err,notationId,time) {
+    getIdNotation(isin,function (err,notationId,time,isPercent) {
         if(err !== null){
             res.send("ERROR");
             return;
         }
-        getDataFromTable(res,notationId,time);
+        getDataFromTable(res,notationId,time,isPercent);
     })
 };
 
