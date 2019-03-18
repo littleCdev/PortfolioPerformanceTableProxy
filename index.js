@@ -52,7 +52,7 @@ app.get('/files/:FILE/', function (req, res) {
     res.sendFile(req.params.FILE, { root: path.join(__dirname, './static-files') });
 });
 
-app.post('/converters/:PROVIDER/*', function (req, res) {
+app.post('/converters/:PROVIDER/', function (req, res) {
     try{
         var o = require("./converters/"+req.params.PROVIDER+".js");
         o.handleRequestPost(req,res);
