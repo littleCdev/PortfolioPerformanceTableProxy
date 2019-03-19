@@ -118,7 +118,7 @@ function getDataFromTable(res,notationId,isPercent) {
 
 
         let oCSV = papa.parse(body);
-        oCSV.data.splice(0,3); //removes headers
+        oCSV.data.splice(0,2); //removes headers
         /*
         0->Datum
         1->Eröffnung
