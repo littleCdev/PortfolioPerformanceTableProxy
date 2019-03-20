@@ -1,10 +1,13 @@
-var request = require('request');
-var cfg     = require("../config.json");
+let express = require('express');
+let router = express.Router();
 
-var SEARCHURL = "https://www.comdirect.de/inf/search/all.html?SEARCH_VALUE=%ISIN%";
-var URL = "https://www.comdirect.de/inf/snippet$lsg.chart_map_middle.ajax?CHART_URL_PARAMS=%PARAMS%&REFERRER_PAGE_ID=lsg.bond.detail.chart";
-var CHARTPARAMS = "WIDTH=645&HEIGHT=655&TYPE=MOUNTAIN&TIME_SPAN=SE&TO=%MAXTIME%&AXIS_SCALE=lin&PRICE_MAP=1&DATA_SCALE=abs&LNOTATIONS=%NOTATIONID%&LCOLORS=5F696E&IND0=VOLUME&AVGTYPE=simple&WITH_EARNINGS=1&SHOWHL=1";
-var TABLE = "<table>\n" +
+let request = require('request');
+let cfg     = require("../config.json");
+
+let SEARCHURL = "https://www.comdirect.de/inf/search/all.html?SEARCH_VALUE=%ISIN%";
+let URL = "https://www.comdirect.de/inf/snippet$lsg.chart_map_middle.ajax?CHART_URL_PARAMS=%PARAMS%&REFERRER_PAGE_ID=lsg.bond.detail.chart";
+let CHARTPARAMS = "WIDTH=645&HEIGHT=655&TYPE=MOUNTAIN&TIME_SPAN=SE&TO=%MAXTIME%&AXIS_SCALE=lin&PRICE_MAP=1&DATA_SCALE=abs&LNOTATIONS=%NOTATIONID%&LCOLORS=5F696E&IND0=VOLUME&AVGTYPE=simple&WITH_EARNINGS=1&SHOWHL=1";
+let TABLE = "<table>\n" +
     "    <thead>\n" +
     "        <tr>\n" +
     "            <th>Datum</th>\n" +
@@ -18,7 +21,7 @@ var TABLE = "<table>\n" +
     "    </tbody>\n" +
     "</table>";
 
-var ROW = "<tr>" +
+let ROW = "<tr>" +
     "<td>%DATE%</td>" +
     "<td>%PRICE%</td>" +
     "<td>%PRICE%</td>" +
@@ -27,11 +30,11 @@ var ROW = "<tr>" +
 
 function getIdNotation(isin,callback) {
 
-    var sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
-    var req;
+    let sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
+    let req;
     if(cfg.proxy.useproxy){
         console.log("proxy");
-        var proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
         req = request.defaults({'proxy': proxyUrl});
     }else {
         req = request;
@@ -46,14 +49,14 @@ console.log(sUrl);
             return;
         }
 
-        var regex = /ID_NOTATION=([0-9]{1,})"/gmi;
-        var match = regex.exec(body);
+        let regex = /ID_NOTATION=([0-9]{1,})"/gmi;
+        let match = regex.exec(body);
 
         if(match === null || match[1] === undefined){
             callback("ERROR");
             return;
         }
-        var notationid = match[1];
+        let notationid = match[1];
         console.log(notationid);
 
         regex = /id="timestamp_keyelement" value="([0-9]{1,})"/gmi;
@@ -64,7 +67,7 @@ console.log(sUrl);
             return;
         }
 
-        var maxtime = match[1];
+        let maxtime = match[1];
         maxtime = maxtime.substr(0,10);
 
         console.log("maxtime: "+maxtime);
@@ -93,12 +96,12 @@ console.log(sUrl);
 function getDataFromTable(res,notationId,maxtime,isPercent) {
 
 
-    var params = CHARTPARAMS.replace(/%MAXTIME%/gi,maxtime).replace(/%NOTATIONID%/gi,notationId);
-    var sUrl = URL.replace(/%PARAMS%/gi,encodeURIComponent(params));
+    let params = CHARTPARAMS.replace(/%MAXTIME%/gi,maxtime).replace(/%NOTATIONID%/gi,notationId);
+    let sUrl = URL.replace(/%PARAMS%/gi,encodeURIComponent(params));
     console.log(sUrl);
-    var req;
+    let req;
     if(cfg.proxy.useproxy){
-        var proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
         req = request.defaults({'proxy': proxyUrl});
     }else {
         req = request;
@@ -113,12 +116,12 @@ function getDataFromTable(res,notationId,maxtime,isPercent) {
             return;
         }
 
-        var sTableBody = "";
-        var sHtml = body;
-        var regex = /{"dateTime":"([0-9]{2}.[0-9]{2}.[0-9]{4})","text":"([0-9]{1,},[0-9]{2})"}/gim;
-        var match = [];
+        let sTableBody = "";
+        let sHtml = body;
+        let regex = /{"dateTime":"([0-9]{2}.[0-9]{2}.[0-9]{4})","text":"([0-9]{1,},[0-9]{2})"}/gim;
+        let match = [];
         while (match = regex.exec(sHtml)) {
-            var price = parseFloat(match[2].replace(/,/gi,"."));
+            let price = parseFloat(match[2].replace(/,/gi,"."));
 
             if(isPercent)
                 price /= 100;
@@ -126,7 +129,7 @@ function getDataFromTable(res,notationId,maxtime,isPercent) {
             sTableBody += ROW.replace(/%DATE%/ig,match[1]).replace(/%PRICE%/ig,price);
 
         }
-        var table = TABLE.replace(/%BODY%/ig,sTableBody);
+        let table = TABLE.replace(/%BODY%/ig,sTableBody);
 
         res.send(table);
 
@@ -145,3 +148,16 @@ exports.getCreateTable = function (res,isin) {
     })
 };
 
+router.get('/isin/:ISIN', function (req, res) {
+    getIdNotation(req.params.ISIN,function (err,notationId,time,isPercent) {
+        if(err !== null){
+            res.send("ERROR");
+            return;
+        }
+        getDataFromTable(res,notationId,time,isPercent);
+    })
+
+});
+
+
+module.exports = router;

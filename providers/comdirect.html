@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>comdirect</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link type="text/css" rel="stylesheet" href="/files/materialize.min.css"  media="screen,projection"/>
+
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script src="/files/jquery-3.3.1.min.js"></script>
+    <script src="comdirect.html.js"></script>
+
+</head>
+<body>
+<div class="row">
+    <div class="input-field col s6">
+        <input value="" id="isin" type="text" >
+        <label class="active" for="isin">isin</label>
+    </div>
+</div>
+<div class="row">
+    <div class="input-field col s6">
+        <button class="btn waves-effect waves-light right" type="submit" name="action" id="getUrls">
+            Get URLs for PP
+            <i class="material-icons right">send</i>
+        </button>
+    </div>
+</div>
+<div class="row">
+    <div class="col s6">
+        <ul class="collection with-header" id="list">
+
+        </ul>
+    </div>
+</div>
+
+</body>
+</html>

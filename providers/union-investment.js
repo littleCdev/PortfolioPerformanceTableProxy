@@ -1,10 +1,13 @@
-var request     = require('request');
-var dateformat  = require('dateformat');
-var papa        = require('papaparse');
-var cfg         = require("../config.json");
+let express = require('express');
+let router = express.Router();
 
-var CSVURL = "https://www.union-investment.de/handle";
-var TABLE = "<table>\n" +
+let request     = require('request');
+let dateformat  = require('dateformat');
+let papa        = require('papaparse');
+let cfg         = require("../config.json");
+
+let CSVURL = "https://www.union-investment.de/handle";
+let TABLE = "<table>\n" +
     "    <thead>\n" +
     "        <tr>\n" +
     "            <th>Datum</th>\n" +
@@ -18,7 +21,7 @@ var TABLE = "<table>\n" +
     "    </tbody>\n" +
     "</table>";
 
-var ROW = "<tr>" +
+let ROW = "<tr>" +
     "<td>%DATE%</td>" +
     "<td>%PRICE%</td>" +
     "<td>%PRICE%</td>" +
@@ -28,15 +31,16 @@ var ROW = "<tr>" +
 
 function getCSV(isin,callback) {
 
-    var sToday = dateformat(new Date(),"dd.mm.yyyy");
+    let sToday = dateformat(new Date(),"dd.mm.yyyy");
 
-    var req;
+    let req;
     if(cfg.proxy.useproxy){
-        var proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
         req = request.defaults({'proxy': proxyUrl});
     }else {
         req = request;
     }
+    console.log("url (post):"+CSVURL);
     req.post(CSVURL,{
         form:{
             "generate": true,
@@ -52,11 +56,11 @@ function getCSV(isin,callback) {
         console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
 
         if (response.statusCode !== 200) {
-            callback("ERROR");
+            callback("ERROR invalid statuscode");
             return;
         }
         if (body.toLowerCase().indexOf("<head>") > -1){
-            callback("invalid ISIN");
+            callback("invalid ISIN/ISIN does not exist");
             return;
         }
        callback(null,body);
@@ -64,8 +68,8 @@ function getCSV(isin,callback) {
 }
 
 function createTableFromCSV(csv,res){
-    var oCVS = papa.parse(csv);
-    var sTableBody = "";
+    let oCVS = papa.parse(csv);
+    let sTableBody = "";
 /*
    [ [ 'Name',
        'ISIN',
@@ -81,24 +85,25 @@ function createTableFromCSV(csv,res){
        'TIS' ],
  */
 
-    for(var i=0; i<oCVS.data.length;i++){
+    for(let i=0; i<oCVS.data.length;i++){
         if(i===0) continue;
         sTableBody += ROW.replace(/%DATE%/ig,oCVS.data[i][6]).replace(/%PRICE%/ig,oCVS.data[i][4]);
     }
-    var table = TABLE.replace(/%BODY%/ig,sTableBody);
+    let table = TABLE.replace(/%BODY%/ig,sTableBody);
 
     res.send(table);
 
 }
 
-exports.getCreateTable = function (res,isin) {
+router.get('/isin/:ISIN', function (req, res) {
+    getCSV(req.params.ISIN,function (err,data) {
+        if(err !== null){
+            console.log(err);
+            res.send(err);
+            return;
+        }
+        createTableFromCSV(data,res);
+    })
+});
 
-   getCSV(isin,function (err,data) {
-       if(err !== null){
-           res.send("ERROR");
-           return;
-       }
-       createTableFromCSV(data,res);
-   })
-};
-
+module.exports = router;

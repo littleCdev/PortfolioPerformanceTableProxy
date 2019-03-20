@@ -1,9 +1,12 @@
-var request = require('request');
-var cfg     = require("../config.json");
+let express = require('express');
+let router = express.Router();
 
-var SEARCHURL = "https://www.onvista.de/fonds/%ISIN%"
-var URL = "http://www.onvista.de/fonds/kurshistorie.html?ID_NOTATION=%NOTATIONID%&RANGE=36M";
-var TABLE = "<table>\n" +
+let request = require('request');
+let cfg     = require("../config.json");
+
+let SEARCHURL = "https://www.onvista.de/fonds/%ISIN%"
+let URL = "http://www.onvista.de/fonds/kurshistorie.html?ID_NOTATION=%NOTATIONID%&RANGE=36M";
+let TABLE = "<table>\n" +
     "    <thead>\n" +
     "        <tr>\n" +
     "            <th>Datum</th>\n" +
@@ -17,7 +20,7 @@ var TABLE = "<table>\n" +
     "    </tbody>\n" +
     "</table>";
 
-var ROW = "<tr>" +
+let ROW = "<tr>" +
     "<td>%DATE%</td>" +
     "<td>%PRICE%</td>" +
     "<td>%PRICE%</td>" +
@@ -25,35 +28,35 @@ var ROW = "<tr>" +
     "</tr>";
 
 function getIdNotation(isin,callback) {
-     var sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
-    var req;
+    let sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
+    let req;
     if(cfg.proxy.useproxy){
         console.log("proxy");
-        var proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
         req = request.defaults({'proxy': proxyUrl});
     }else {
         req = request;
     }
-
+console.log(sUrl);
     req(sUrl, function (error, response, body) {
         console.log('error:', error); // Print the error if one occurred
         console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
 
         if(response === undefined || response.statusCode !== 200){
-            callback("ERROR");
+            callback("ERROR no response");
             return;
         }
-        var regex = /data-notation="(.+)"/gmi;
-        var x = body.match(regex);
+        let regex = /data-notation="(.+)"/gmi;
+        let match = regex.exec(body);
 
-        if(x.length !== 1){
-            callback("error");
+        if(match == null || match[1] ===undefined){
+            callback("ERROR no notation-id found");
             return;
         }
 
-        var html = x[0];
+        let html = match[0];
 
-        var notationId = html.replace("data-notation=","").replace(/"/gi,"");
+        let notationId = html.replace("data-notation=","").replace(/"/gi,"");
 
         console.log(notationId);
 
@@ -63,10 +66,10 @@ function getIdNotation(isin,callback) {
 
 function getDataFromTable(res,notationId) {
 
-    var sUrl = URL.replace(/%NOTATIONID%/gi,notationId);
-    var req;
+    let sUrl = URL.replace(/%NOTATIONID%/gi,notationId);
+    let req;
     if(cfg.proxy.useproxy){
-        var proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
         req = request.defaults({'proxy': proxyUrl});
     }else {
         req = request;
@@ -81,14 +84,14 @@ function getDataFromTable(res,notationId) {
             return;
         }
 
-        var sTableBody = "";
-        var sHtml = body;
-        var regex = /<td>([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td><td>([0-9]+,[0-9]+)<\/td>/gim;
-        var match, results = [];
+        let sTableBody = "";
+        let sHtml = body;
+        let regex = /<td>([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td><td>([0-9]+,[0-9]+)<\/td>/gim;
+        let match, results = [];
         while (match = regex.exec(sHtml)) {
             sTableBody += ROW.replace(/%DATE%/ig,match[1]).replace(/%PRICE%/ig,match[2]);
         }
-        var table = TABLE.replace(/%BODY%/ig,sTableBody);
+        let table = TABLE.replace(/%BODY%/ig,sTableBody);
 
         res.send(table);
 
@@ -96,13 +99,15 @@ function getDataFromTable(res,notationId) {
 
 }
 
-exports.getCreateTable = function (res,isin) {
-    getIdNotation(isin,function (err,notationId) {
+router.get('/isin/:ISIN', function (req, res) {
+    getIdNotation(req.params.ISIN,function (err,notationId) {
         if(err !== null){
             res.send("ERROR");
             return;
         }
         getDataFromTable(res,notationId);
     });
-};
+});
 
+
+module.exports = router;

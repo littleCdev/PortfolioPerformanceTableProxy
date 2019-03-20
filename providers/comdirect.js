@@ -1,7 +1,11 @@
-let request = require('request');
+let express     = require('express');
+let router      = express.Router();
+
+let request     = require('request');
 let dateformat  = require('dateformat');
 let papa        = require('papaparse');
-let cfg     = require("../config.json");
+let path        = require('path');
+let cfg         = require("../config.json");
 
 let SEARCHURL = "https://www.comdirect.de/inf/search/all.html?SEARCH_VALUE=%ISIN%";
 let URL = "https://kunde.comdirect.de/inf/kursdaten/historic.csv?INTERVALL=16&DATETIME_TZ_END_RANGE_FORMATED=%DATE%&WITH_EARNINGS=false&DATETIME_TZ_START_RANGE_FORMATED=01.01.1970&ID_NOTATION=%NOTATIONID%";
@@ -27,6 +31,12 @@ let ROW = "<tr>" +
     "<td>%LOW%</td>" +
     "</tr>";
 
+let COLLECTION_ITEM = "<li class=\"collection-item avatar\">\n" +
+    "      <span class=\"title\">%MARKET%</span>\n" +
+    "      <p>%URL%<br>\n" +
+    "      </p>\n" +
+    " <a href=\"%URL%\" class=\"secondary-content copyurl\"><i class=\"material-icons\" title='copy link to clipboard'>file_copy</i></a>" +
+    "    </li>";
 function getIdNotation(isin,callback) {
 
     var sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
@@ -159,7 +169,7 @@ function getDataFromTable(res,notationId,currentData) {
         }
 
 
-        if(!bCurrentDataFound){
+        if(!bCurrentDataFound && currentData.date !== "0"){
             sTableBody = ROW
                 .replace(/%DATE%/ig,currentData.date)
                 .replace(/%HIGH%/ig,currentData.price)
@@ -175,14 +185,68 @@ function getDataFromTable(res,notationId,currentData) {
 
 }
 
-exports.getCreateTable = function (res,isin) {
 
-    getIdNotation(isin,function (err,notationId,time,isPercent) {
+router.get('/getnotation-id/:ISIN',function (req,res) {
+
+    let isin = req.params.ISIN;
+
+    let sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
+    let xhrreq;
+    if(cfg.proxy.useproxy){
+        console.log("proxy");
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        xhrreq = request.defaults({'proxy': proxyUrl});
+    }else {
+        xhrreq = request;
+    }
+console.log(sUrl);
+    xhrreq.get(sUrl, function (error, response, body) {
+        console.log('error:', error); // Print the error if one occurred
+        console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+
+        if(response === undefined || response.statusCode !== 200){
+            callback("ERROR");
+            return;
+        }
+
+        let regex = /<option value=\"([0-9]{9})\" .+label=\"(.+)\">(.+)<\/option/gmi;
+
+        let match;
+        let list = "";
+        let url = req.get('host')+"/tables/comdirect/notationid/";
+        while ((match = regex.exec(body)) != null) {
+            console.log(match[1]+"\t"+match[2]);
+            list += COLLECTION_ITEM
+                .replace(/%MARKET%/gmi,match[2])
+                .replace(/%URL%/gmi,url+match[1]);
+        }
+
+        res.send(list);
+
+    });
+});
+router.get('/notationid/:NOTATIONID', function (req, res) {
+    getDataFromTable(res,req.params.NOTATIONID,{date:"0",price:-1});
+});
+
+router.get('/isin/:ISIN', function (req, res) {
+    getIdNotation(req.params.ISIN,function (err,notationId,time,isPercent) {
         if(err !== null){
             res.send("ERROR");
             return;
         }
         getDataFromTable(res,notationId,time,isPercent);
     })
-};
 
+});
+
+router.get('/', function (req, res) {
+    res.sendFile("comdirect.html", { root: path.join(__dirname, '') });
+});
+
+router.get('/comdirect.html.js', function (req, res) {
+    res.sendFile("comdirect.html.js", { root: path.join(__dirname, '') });
+});
+
+
+module.exports = router;

@@ -1,10 +1,17 @@
-let formidable = require('formidable')
+let express = require('express');
+let router = express.Router();
+
+let formidable = require('formidable');
 let papa        = require('papaparse');
 let cfg         = require("../config.json");
-let path        = require('path')
+let path        = require('path');
 let fs          = require('fs');
 
-
+router.use(function timeLog(req, res, next) {
+    console.log('Time: ', Date.now());
+    console.log(req.originalUrl);
+    next();
+});
 
 function parseCSVFile(file,callback){
     let fd = fs.createReadStream(file.path);
@@ -93,25 +100,31 @@ function alterCVS(CSV,res){
     CSV.splice(0,0,aFirstRow);
 
 
-    var CSVstring = papa.unparse(CSV);
+    let CSVstring = papa.unparse(CSV);
     res.setHeader('Content-disposition', 'attachment; filename=' + "comdirect-csv-export.csv");
     res.setHeader('Content-type', "text/comma-separated-values");
     res.send(CSVstring);
 }
 
-exports.handleRequestGet = function (req,res) {
-       res.sendFile("comdirect.html", { root: path.join(__dirname, '../static-files') });
-};
+router.get('/', function (req, res) {
+    res.sendFile("comdirect.html", { root: path.join(__dirname, '../converters/') });
+});
 
-exports.handleRequestPost = function (req,res) {
+router.get('/download/PPP-comdirect-export.json', function (req, res) {
+    res.setHeader('Content-disposition', 'attachment; filename=' + "PPP-comdirect-export.json");
+    res.setHeader('Content-type', "application/json");
+    res.sendFile("PPP-comdirect-export.json", { root: path.join(__dirname, '../converters/') });
+});
 
+
+router.post('/', function (req, res) {
     new formidable.IncomingForm().parse(req, (err, fields, files) => {
         if (err) {
-            console.error('Error', err)
+            console.error('Error', err);
             throw err
         }
-        console.log('Fields', fields)
-        console.log('Files', files)
+        console.log('Fields', fields);
+        console.log('Files', files);
 
         if(files["csv-export"]!==undefined) {
             parseCSVFile(files["csv-export"], function (e, data) {
@@ -123,5 +136,6 @@ exports.handleRequestPost = function (req,res) {
             });
         }
     });
-};
+});
 
+module.exports = router;
