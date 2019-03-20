@@ -13,7 +13,6 @@ let TABLE = "<table>\n" +
     "            <th>Close</th>\n" +
     "            <th>Tageshoch</th>\n" +
     "            <th>Tagestief</th>\n" +
-    "            <th>Schluss</th>\n" +
     "        </tr>\n" +
     "    </thead>\n" +
     "    <tbody>\n" +
@@ -26,7 +25,6 @@ let ROW = "<tr>" +
     "<td>%CLOSE%</td>" +
     "<td>%HIGH%</td>" +
     "<td>%LOW%</td>" +
-    "<td>%END%</td>" +
     "</tr>";
 
 function getIdNotation(isin,callback) {
@@ -57,23 +55,36 @@ console.log(sUrl);
             callback("ERROR");
             return;
         }
-        var notationid = match[1];
-        console.log(notationid);
+        let notationid = match[1];
+        console.log("notationid: "+notationid);
 
-        regex = /id="timestamp_keyelement" value="([0-9]{1,})"/gmi;
+        // get current price and date, will be added to csv values in case market isn't closed yet
+        let currentData = {
+            price:-1,
+            date:""
+        };
+        regex = /<td class="table__column--top table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
         match = regex.exec(body);
-
         if(match == null || match[1] ===undefined){
             callback("ERROR");
             return;
         }
-
-        var maxtime = match[1];
-        maxtime = maxtime.substr(0,10);
-
-        console.log("maxtime: "+maxtime);
+        currentData.date = match[1];
+        currentData.date = currentData.date.substr(0,6)+dateformat(new Date(),"yyyy");
+        console.log("currentData.date: "+currentData.date);
 
 
+        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+        match = regex.exec(body);
+        if(match == null || match[1] ===undefined){
+            callback("ERROR");
+            return;
+        }
+        currentData.price = match[1];
+        console.log("currentData.price: "+currentData.price);
+
+        callback(null,notationid,currentData);
+/*
         regex = /<span class="text-size--medium outer-spacing--xxsmall-left outer-spacing--small-top">(.+)<\/span>/gmi;
         match = regex.exec(body);
 
@@ -87,14 +98,15 @@ console.log(sUrl);
             callback(null, notationid, maxtime, true);
         }else
             callback(null,notationid,maxtime,false);
-
+*/
 
 
 
     });
 }
 
-function getDataFromTable(res,notationId,isPercent) {
+
+function getDataFromTable(res,notationId,currentData) {
     let sToday = dateformat(new Date(),"dd.mm.yyyy");
     let sUrl = URL.replace(/%NOTATIONID%/gi,notationId).replace(/%DATE%/gi,sToday)
     console.log(sUrl);
@@ -117,7 +129,10 @@ function getDataFromTable(res,notationId,isPercent) {
         }
 
 
-        let oCSV = papa.parse(body);
+        let oCSV = papa.parse(body,{
+            skipEmptyLines:true
+        });
+
         oCSV.data.splice(0,2); //removes headers
         /*
         0->Datum
@@ -128,16 +143,31 @@ function getDataFromTable(res,notationId,isPercent) {
         5->Volumen
          */
         let sTableBody = "";
-        console.log(oCSV);
+        let bCurrentDataFound = false;
+ //       console.log(oCSV);
         for(let i=0; i<oCSV.data.length;i++){
-            if(i===0) continue;
+            if(oCSV.data[i][0] === currentData.date){
+                console.log("Date found!");
+                bCurrentDataFound = true;
+            }
+
             sTableBody += ROW
                 .replace(/%DATE%/ig,oCSV.data[i][0])
                 .replace(/%HIGH%/ig,oCSV.data[i][2])
                 .replace(/%LOW%/ig,oCSV.data[i][3])
-                .replace(/%LOW%/ig,oCSV.data[i][3])
                 .replace(/%CLOSE%/ig,oCSV.data[i][4]);
         }
+
+
+        if(!bCurrentDataFound){
+            sTableBody = ROW
+                .replace(/%DATE%/ig,currentData.date)
+                .replace(/%HIGH%/ig,currentData.price)
+                .replace(/%LOW%/ig,currentData.price)
+                .replace(/%CLOSE%/ig,currentData.price)
+            +sTableBody;
+        }
+
         let table = TABLE.replace(/%BODY%/ig,sTableBody);
 
         res.send(table);
