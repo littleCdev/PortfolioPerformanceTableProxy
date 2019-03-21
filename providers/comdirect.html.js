@@ -21,7 +21,7 @@ const copyToClipboard = str => {
 };
 
 function initEvents(){
-    $("a.copyurl").on("click",function (e) {
+    $("a.copyurl").one("click",function (e) {
         e.preventDefault();
         var url = $(this).attr("href");
         copyToClipboard(url);
@@ -29,7 +29,7 @@ function initEvents(){
 }
 
 $(function() {
-    $("#getUrls").one("click",function (e) {
+    $("#getUrls").on("click",function (e) {
         getlist();
     });
 
