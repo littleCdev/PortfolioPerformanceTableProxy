@@ -8,6 +8,7 @@ let path        = require('path');
 let cfg         = require("../config.json");
 
 let SEARCHURL = "https://www.comdirect.de/inf/search/all.html?SEARCH_VALUE=%ISIN%";
+let URLWITHMARKET = "https://www.comdirect.de/inf/%TYPE%/detail/uebersicht.html?SEARCH_REDIRECT=true&REFERER=search.general&REDIRECT_TYPE=ISIN&SEARCH_VALUE=%ISIN%&ID_NOTATION=%NOTATIONID%";
 let URL = "https://kunde.comdirect.de/inf/kursdaten/historic.csv?INTERVALL=16&DATETIME_TZ_END_RANGE_FORMATED=%DATE%&WITH_EARNINGS=false&DATETIME_TZ_START_RANGE_FORMATED=01.01.1970&ID_NOTATION=%NOTATIONID%";
 
 let TABLE = "<table>\n" +
@@ -37,13 +38,25 @@ let COLLECTION_ITEM = "<li class=\"collection-item avatar\">\n" +
     "      </p>\n" +
     " <a href=\"%URL%\" class=\"secondary-content copyurl\"><i class=\"material-icons\" title='copy link to clipboard'>file_copy</i></a>" +
     "    </li>";
-function getIdNotation(isin,callback) {
 
-    var sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
-    var req;
+function getIsinData(isin,callback) {
+    let IsinData = {
+        isin:"",
+        type: "",
+        isPercent:false,
+        default_notation_id:-1,
+        markets : {},
+        currentData: {
+            date: "0",
+            price: -1
+        }
+    };
+
+    let sUrl = SEARCHURL.replace(/%ISIN%/gi,isin);
+    let req;
     if(cfg.proxy.useproxy){
         console.log("proxy");
-        var proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
         req = request.defaults({'proxy': proxyUrl});
     }else {
         req = request;
@@ -52,73 +65,178 @@ console.log(sUrl);
     req.get(sUrl, function (error, response, body) {
         console.log('error:', error); // Print the error if one occurred
         console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+        console.log("response",response.request.uri.path);
 
         if(response === undefined || response.statusCode !== 200){
-            callback("ERROR");
+            callback("ERROR invalid response");
             return;
         }
 
-        var regex = /ID_NOTATION=([0-9]{1,})"/gmi;
-        var match = regex.exec(body);
+        IsinData.isin = isin;
+
+        // parse type (etfs,anleihen,aktien etc)
+        let regex = /inf\/(.+)\/detail/gmi;
+        let match = regex.exec(response.request.uri.path);
+        if(match === null || match[1] === undefined){
+            callback("ERROR: can not find isin type");
+            return;
+        }
+        IsinData.type = match[1];
+        console.log("IsinData.type : "+IsinData.type );
+
+
+        regex = /ID_NOTATION=([0-9]{1,})"/gmi;
+        match = regex.exec(body);
 
         if(match === null || match[1] === undefined){
             callback("ERROR");
             return;
         }
-        let notationid = match[1];
-        console.log("notationid: "+notationid);
+        IsinData.default_notation_id = match[1];
+        console.log("IsinData.default_notation_id : "+IsinData.default_notation_id );
 
         // get current price and date, will be added to csv values in case market isn't closed yet
-        let currentData = {
-            price:-1,
-            date:""
-        };
         regex = /<td class="table__column--top table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
         match = regex.exec(body);
         if(match == null || match[1] ===undefined){
-            callback("ERROR");
+            callback("ERROR can not get notation id");
             return;
         }
-        currentData.date = match[1];
-        currentData.date = currentData.date.substr(0,6)+dateformat(new Date(),"yyyy");
-        console.log("currentData.date: "+currentData.date);
+        IsinData.currentData.date = match[1];
+        IsinData.currentData.date = IsinData.currentData.date.substr(0,6)+dateformat(new Date(),"yyyy");
+        console.log("IsinData.currentData.date: "+IsinData.currentData.date);
 
 
-        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
-        match = regex.exec(body);
-        if(match == null || match[1] ===undefined){
-            callback("ERROR");
-            return;
-        }
-        currentData.price = match[1];
-        console.log("currentData.price: "+currentData.price);
-
-        callback(null,notationid,currentData);
-/*
+        // check if is % or actual price
         regex = /<span class="text-size--medium outer-spacing--xxsmall-left outer-spacing--small-top">(.+)<\/span>/gmi;
         match = regex.exec(body);
 
         if(match == null || match[1] ===undefined){
-            callback("ERROR");
+            callback("ERROR can not check if percent or not");
             return;
         }
 
         if(match[1] === "%") {
+            IsinData.isPercent = true;
             console.log("is percent");
-            callback(null, notationid, maxtime, true);
-        }else
-            callback(null,notationid,maxtime,false);
-*/
+        }
 
 
+        // get price or % value
+        if(IsinData.isPercent)
+            regex = /<span class="text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+        else
+            regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
 
+
+        match = regex.exec(body);
+        if(match == null || match[1] ===undefined){
+            callback("ERROR can not get current price");
+            return;
+        }
+        IsinData.currentData.price = match[1];
+        console.log("IsinData.currentData.price: "+IsinData.currentData.price);
+
+        callback(null,IsinData);
     });
 }
 
+function getIsinDataWithMarket(IsinData,callback) {
 
-function getDataFromTable(res,notationId,currentData) {
+    let sUrl = URLWITHMARKET
+        .replace(/%NOTATIONID%/gi,IsinData.default_notation_id)
+        .replace(/%ISIN%/gi,IsinData.isin)
+        .replace(/%TYPE%/gi,IsinData.type);
+    let req;
+    if(cfg.proxy.useproxy){
+        console.log("proxy");
+        let proxyUrl = "http://" + cfg.proxy.user + ":" + cfg.proxy.password + "@" + cfg.proxy.host + ":" + cfg.proxy.port;
+        req = request.defaults({'proxy': proxyUrl});
+    }else {
+        req = request;
+    }
+    console.log(sUrl);
+    req.get(sUrl, function (error, response, body) {
+        console.log('error:', error); // Print the error if one occurred
+        console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+        console.log("response",response.request.uri.path);
+
+        if(response === undefined || response.statusCode !== 200){
+            callback("ERROR invalid response");
+            return;
+        }
+
+        // parse type (etfs,anleihen,aktien etc)
+        let regex = /inf\/(.+)\/detail/gmi;
+        let match = regex.exec(response.request.uri.path);
+        if(match === null || match[1] === undefined){
+            callback("ERROR: can not find isin type");
+            return;
+        }
+        IsinData.type = match[1];
+        console.log("IsinData.type : "+IsinData.type );
+
+
+        regex = /ID_NOTATION=([0-9]{1,})"/gmi;
+        match = regex.exec(body);
+
+        if(match === null || match[1] === undefined){
+            callback("ERROR");
+            return;
+        }
+        IsinData.default_notation_id = match[1];
+        console.log("IsinData.default_notation_id : "+IsinData.default_notation_id );
+
+        // get current price and date, will be added to csv values in case market isn't closed yet
+        regex = /<td class="table__column--top table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
+        match = regex.exec(body);
+        if(match == null || match[1] ===undefined){
+            callback("ERROR can not get notation id");
+            return;
+        }
+        IsinData.currentData.date = match[1];
+        IsinData.currentData.date = IsinData.currentData.date.substr(0,6)+dateformat(new Date(),"yyyy");
+        console.log("IsinData.currentData.date: "+IsinData.currentData.date);
+
+
+        // check if is % or actual price
+        regex = /<span class="text-size--medium outer-spacing--xxsmall-left outer-spacing--small-top">(.+)<\/span>/gmi;
+        match = regex.exec(body);
+
+        if(match == null || match[1] ===undefined){
+            callback("ERROR can not check if percent or not");
+            return;
+        }
+
+        if(match[1] === "%") {
+            IsinData.isPercent = true;
+            console.log("is percent");
+        }
+
+        // two tries...
+
+        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+
+        match = regex.exec(body);
+        if(match == null || match[1] ===undefined){
+            regex = /<span class="text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+
+            match = regex.exec(body);
+            if(match == null || match[1] ===undefined) {
+                callback("ERROR can not get current price");
+                return;
+            }
+        }
+        IsinData.currentData.price = match[1];
+        console.log("IsinData.currentData.price: "+IsinData.currentData.price);
+
+        callback(null,IsinData);
+    });
+}
+
+function getDataFromTable(res,IsinData) {
     let sToday = dateformat(new Date(),"dd.mm.yyyy");
-    let sUrl = URL.replace(/%NOTATIONID%/gi,notationId).replace(/%DATE%/gi,sToday)
+    let sUrl = URL.replace(/%NOTATIONID%/gi,IsinData.default_notation_id).replace(/%DATE%/gi,sToday)
     console.log(sUrl);
 
     let req;
@@ -134,7 +252,7 @@ function getDataFromTable(res,notationId,currentData) {
         console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
 
         if(response.statusCode !== 200){
-            res.send("ERROR");
+            res.send("ERROR invalid response");
             return;
         }
 
@@ -156,9 +274,15 @@ function getDataFromTable(res,notationId,currentData) {
         let bCurrentDataFound = false;
  //       console.log(oCSV);
         for(let i=0; i<oCSV.data.length;i++){
-            if(oCSV.data[i][0] === currentData.date){
+            if(oCSV.data[i][0] === IsinData.currentData.date){
                 console.log("Date found!");
                 bCurrentDataFound = true;
+            }
+
+            if(IsinData.isPercent){
+                oCSV.data[i][2] = parseFloat(oCSV.data[i][2])/100;
+                oCSV.data[i][3] = parseFloat(oCSV.data[i][3])/100;
+                oCSV.data[i][4] = parseFloat(oCSV.data[i][4])/100;
             }
 
             sTableBody += ROW
@@ -169,12 +293,16 @@ function getDataFromTable(res,notationId,currentData) {
         }
 
 
-        if(!bCurrentDataFound && currentData.date !== "0"){
+        if(!bCurrentDataFound && IsinData.currentData.date !== "0"){
+
+            if(IsinData.isPercent)
+                IsinData.currentData.price = parseFloat(IsinData.currentData.price)/100;
+
             sTableBody = ROW
-                .replace(/%DATE%/ig,currentData.date)
-                .replace(/%HIGH%/ig,currentData.price)
-                .replace(/%LOW%/ig,currentData.price)
-                .replace(/%CLOSE%/ig,currentData.price)
+                .replace(/%DATE%/ig,IsinData.currentData.date)
+                .replace(/%HIGH%/ig,IsinData.currentData.price)
+                .replace(/%LOW%/ig,IsinData.currentData.price)
+                .replace(/%CLOSE%/ig,IsinData.currentData.price)
             +sTableBody;
         }
 
@@ -200,6 +328,7 @@ router.get('/getnotation-id/:ISIN',function (req,res) {
         xhrreq = request;
     }
 console.log(sUrl);
+
     xhrreq.get(sUrl, function (error, response, body) {
         console.log('error:', error); // Print the error if one occurred
         console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
@@ -218,24 +347,43 @@ console.log(sUrl);
             console.log(match[1]+"\t"+match[2]);
             list += COLLECTION_ITEM
                 .replace(/%MARKET%/gmi,match[2])
-                .replace(/%URL%/gmi,url+match[1]);
+                .replace(/%URL%/gmi,url+match[1]+"/isin/"+isin);
         }
 
         res.send(list);
 
     });
 });
-router.get('/notationid/:NOTATIONID', function (req, res) {
-    getDataFromTable(res,req.params.NOTATIONID,{date:"0",price:-1});
+
+router.get('/notationid/:NOTATIONID/isin/:ISIN', function (req, res) {
+    // sadly need to call getIsinData first because the second request needs the type of the isin
+    // third is to get the csv data
+    getIsinData(req.params.ISIN,function (err,data) {
+        if(err !== null){
+            res.send(err);
+            return;
+        }
+
+        data.default_notation_id = req.params.NOTATIONID;
+
+        getIsinDataWithMarket(data,function (err,data) {
+            if(err !== null){
+                res.send(err);
+                return;
+            }
+            getDataFromTable(res,data);
+        })
+    });
+
 });
 
 router.get('/isin/:ISIN', function (req, res) {
-    getIdNotation(req.params.ISIN,function (err,notationId,time,isPercent) {
+    getIsinData(req.params.ISIN,function (err,data) {
         if(err !== null){
-            res.send("ERROR");
+            res.send(err);
             return;
         }
-        getDataFromTable(res,notationId,time,isPercent);
+        getDataFromTable(res,data);
     })
 
 });
