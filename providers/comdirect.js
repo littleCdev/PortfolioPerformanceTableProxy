@@ -342,7 +342,7 @@ console.log(sUrl);
 
         let match;
         let list = "";
-        let url = req.get('host')+"/tables/comdirect/notationid/";
+        let url = "http://"+req.get('host')+"/tables/comdirect/notationid/";
         while ((match = regex.exec(body)) != null) {
             console.log(match[1]+"\t"+match[2]);
             list += COLLECTION_ITEM
