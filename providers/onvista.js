@@ -3,6 +3,7 @@ let router = express.Router();
 
 let request = require('request');
 let cfg     = require("../config.json");
+let path        = require('path');
 
 let SEARCHURL = "https://www.onvista.de/fonds/%ISIN%"
 let URL = "http://www.onvista.de/fonds/kurshistorie.html?ID_NOTATION=%NOTATIONID%&RANGE=36M";
@@ -107,6 +108,10 @@ router.get('/isin/:ISIN', function (req, res) {
         }
         getDataFromTable(res,notationId);
     });
+});
+
+router.get('/', function (req, res) {
+    res.sendFile("onvista.html", { root: path.join(__dirname, '') });
 });
 
 

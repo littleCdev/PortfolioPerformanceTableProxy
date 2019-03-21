@@ -5,6 +5,7 @@ let request     = require('request');
 let dateformat  = require('dateformat');
 let papa        = require('papaparse');
 let cfg         = require("../config.json");
+let path        = require('path');
 
 let CSVURL = "https://www.union-investment.de/handle";
 let TABLE = "<table>\n" +
@@ -104,6 +105,10 @@ router.get('/isin/:ISIN', function (req, res) {
         }
         createTableFromCSV(data,res);
     })
+});
+
+router.get('/', function (req, res) {
+    res.sendFile("union-investment.html", { root: path.join(__dirname, '') });
 });
 
 module.exports = router;
