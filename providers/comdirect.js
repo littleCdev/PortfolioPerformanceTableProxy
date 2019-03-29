@@ -344,9 +344,9 @@ console.log(sUrl);
         let list = "";
         let url = "http://"+req.get('host')+"/tables/comdirect/notationid/";
         while ((match = regex.exec(body)) != null) {
-            console.log(match[1]+"\t"+match[2]);
+            console.log(match[1]+"\t"+match[3]);
             list += COLLECTION_ITEM
-                .replace(/%MARKET%/gmi,match[2])
+                .replace(/%MARKET%/gmi,match[3])
                 .replace(/%URL%/gmi,url+match[1]+"/isin/"+isin);
         }
 
