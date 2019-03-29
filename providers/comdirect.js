@@ -338,7 +338,7 @@ console.log(sUrl);
             return;
         }
 
-        let regex = /<option value=\"([0-9]{9})\" .+label=\"(.+)\">(.+)<\/option/gmi;
+        let regex = /<option value=\"([0-9]{1,})\"([ ]+selected=\"selected\")?[ ]+label=\"(.+)\">(.+)<\/option/gmi;
 
         let match;
         let list = "";
