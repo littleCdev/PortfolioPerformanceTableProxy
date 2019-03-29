@@ -38,7 +38,7 @@ app.get('/', function (req, res) {
         stat = fs.statSync("" + "./providers/" + "/" + file);
         if (!stat.isDirectory() && !file.endsWith("html.js") && file.endsWith(".js"))
         {
-            sList += "<a href='/tables/"+file.replace(".js","")+"'>"+file.replace(".js","")+"</a><br>";
+            sList += "<a href='/tables/"+file.replace(".js","")+"/'>"+file.replace(".js","")+"</a><br>";
         }
     });
 
