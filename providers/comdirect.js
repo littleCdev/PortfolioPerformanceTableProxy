@@ -122,17 +122,19 @@ console.log(sUrl);
         }
 
 
-        // get price or % value
-        if(IsinData.isPercent)
-            regex = /<span class="text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
-        else
-            regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+        // two tries...
 
+        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
 
         match = regex.exec(body);
         if(match == null || match[1] ===undefined){
-            callback("ERROR can not get current price");
-            return;
+            regex = /<span class="text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+
+            match = regex.exec(body);
+            if(match == null || match[1] ===undefined) {
+                callback("ERROR can not get current price");
+                return;
+            }
         }
         IsinData.currentData.price = match[1];
         console.log("IsinData.currentData.price: "+IsinData.currentData.price);
