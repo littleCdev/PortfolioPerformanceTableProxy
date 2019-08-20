@@ -124,10 +124,10 @@ console.log(sUrl);
 
         // two tries...
 
-        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">([\s ]+)?([0-9]+,[0-9]+)([\s ]+)?<\/span>/gmi;
 
         match = regex.exec(body);
-        if(match == null || match[1] ===undefined){
+        if(match == null || match[2] ===undefined){
             regex = /<span class="text-size--xxlarge text-weight--medium">([\s ]+)?([0-9]+,[0-9]+)([\s ]+)?<\/span>/gmi;
 
             match = regex.exec(body);
@@ -217,10 +217,10 @@ function getIsinDataWithMarket(IsinData,callback) {
 
         // two tries...
 
-        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">[\s ]+([0-9]+,[0-9]+)[\s ]+<\/span>/gmi;
+        regex = /<span class="realtime-indicator--value text-size--xxlarge text-weight--medium">([\s ]+)?([0-9]+,[0-9]+)([\s ]+)?<\/span>/gmi;
 
         match = regex.exec(body);
-        if(match == null || match[1] ===undefined){
+        if(match == null || match[2] ===undefined){
             regex = /<span class="text-size--xxlarge text-weight--medium">([\s ]+)?([0-9]+,[0-9]+)([\s ]+)?<\/span>/gmi;
 
             match = regex.exec(body);
