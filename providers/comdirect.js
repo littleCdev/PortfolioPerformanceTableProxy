@@ -82,13 +82,14 @@ console.log(sUrl);
             return;
         }
         IsinData.type = match[1];
-        console.log("IsinData.type : "+IsinData.type );
+        console.log("1 -IsinData.type : "+IsinData.type );
 
 
-        regex = /ID_NOTATION=([0-9]{1,})"/gmi;
-        match = regex.exec(body);
+        regex = /ID_NOTATION=([0-9]{1,})/gmi;
+        match = regex.exec(response.request.uri.path);
 
         if(match === null || match[1] === undefined){
+	    console.log("failed to get notation-id");
             callback("ERROR");
             return;
         }
@@ -176,13 +177,14 @@ function getIsinDataWithMarket(IsinData,callback) {
             return;
         }
         IsinData.type = match[1];
-        console.log("IsinData.type : "+IsinData.type );
+        console.log("2 -IsinData.type : "+IsinData.type );
 
 
-        regex = /ID_NOTATION=([0-9]{1,})"/gmi;
-        match = regex.exec(body);
+        regex = /ID_NOTATION=([0-9]{1,})/gmi;
+        match = regex.exec(response.request.uri.path);
 
         if(match === null || match[1] === undefined){
+	    console.log("failed to get isin2");
             callback("ERROR");
             return;
         }
