@@ -100,8 +100,15 @@ console.log(sUrl);
         regex = /<td class="table__column--top table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
         match = regex.exec(body);
         if(match == null || match[1] ===undefined){
-            callback("ERROR can not get notation id");
-            return;
+            console.log("marked seems to be closed");
+            // value of regex above is "---" if marked is closed -> second try
+            regex = /<td class="table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
+            match = regex.exec(body);
+
+            if(match == null || match[1] ===undefined) {
+                callback("ERROR can not get date");
+                return;
+            }
         }
         IsinData.currentData.date = match[1];
         IsinData.currentData.date = IsinData.currentData.date.substr(0,6)+dateformat(new Date(),"yyyy");
@@ -195,9 +202,17 @@ function getIsinDataWithMarket(IsinData,callback) {
         regex = /<td class="table__column--top table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
         match = regex.exec(body);
         if(match == null || match[1] ===undefined){
-            callback("ERROR can not get notation id");
-            return;
+            console.log("marked seems to be closed");
+            // value of regex above is "---" if marked is closed -> second try
+            regex = /<td class="table__column--right" data-label="Datum">([0-9]{2}.[0-9]{2}.[0-9]{2})<\/td>/gmi;
+            match = regex.exec(body);
+
+            if(match == null || match[1] ===undefined) {
+                callback("ERROR can not get date");
+                return;
+            }
         }
+
         IsinData.currentData.date = match[1];
         IsinData.currentData.date = IsinData.currentData.date.substr(0,6)+dateformat(new Date(),"yyyy");
         console.log("IsinData.currentData.date: "+IsinData.currentData.date);
@@ -369,7 +384,7 @@ router.get('/notationid/:NOTATIONID/isin/:ISIN', function (req, res) {
         }
 
         data.default_notation_id = req.params.NOTATIONID;
-
+        console.log("Overrideing default_notation_id with: "+req.params.NOTATIONID);
         getIsinDataWithMarket(data,function (err,data) {
             if(err !== null){
                 res.send(err);
