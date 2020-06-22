@@ -64,7 +64,7 @@ function alterCVS(CSV,res){
      */
 
     for(let i=0;i<CSV.length;i++){
-        let iParts = parseFloat(CSV[i][2]);
+        let iParts = parseFloat(CSV[i][2].replace(",","."));
         let iAmount = parseFloat(CSV[i][7].replace(",","."));
         let iPrice = parseFloat(CSV[i][6].replace(",","."));
 
@@ -78,10 +78,9 @@ function alterCVS(CSV,res){
 
         let iDiff = iAmount - (iParts * iPrice);
 
-        CSV[i][8] = iDiff;
+        CSV[i][8] = iDiff.toFixed(2).replace(".",",");
 
-
-//        console.log("parts\t"+iParts+ "\tAmount\t"+iAmount+"\tprice\t"+iPrice);
+        console.log("parts\t"+iParts+ "\tAmount\t"+iAmount+"\tprice\t"+iPrice+"\tdiff:\t"+iDiff);
     }
 
     let aFirstRow = [
