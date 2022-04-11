@@ -116,11 +116,11 @@ console.log(sUrl);
 
 
         // check if is % or actual price
-        regex = /<span class="text-size--medium outer-spacing--xxsmall-left outer-spacing--small-top">(.+)<\/span>/gmi;
+        regex = /<span class="text-size--medium outer-spacing--small-top">(.+)<\/span>/gmi;
         match = regex.exec(body);
 
         if(match == null || match[1] ===undefined){
-            callback("ERROR can not check if percent or not");
+            callback("getIsinData: ERROR can not check if percent or not");
             return;
         }
 
@@ -219,11 +219,11 @@ function getIsinDataWithMarket(IsinData,callback) {
 
 
         // check if is % or actual price
-        regex = /<span class="text-size--medium outer-spacing--xxsmall-left outer-spacing--small-top">(.+)<\/span>/gmi;
+        regex = /<span class="text-size--medium outer-spacing--small-top">(.+)<\/span>/gmi;
         match = regex.exec(body);
 
         if(match == null || match[1] ===undefined){
-            callback("ERROR can not check if percent or not");
+            callback("getIsinDataWithMarket: ERROR can not check if percent or not");
             return;
         }
 
