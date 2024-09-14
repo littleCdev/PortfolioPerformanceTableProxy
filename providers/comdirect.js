@@ -136,15 +136,19 @@ console.log(sUrl);
 
         match = regex.exec(body);
         if(match == null || match[2] ===undefined){
-            regex = /<span class="text-size--xxlarge text-weight--medium">([\s ]+)?([0-9\.]+,[0-9]+)([\s ]+)?<\/span>/gmi;
+            //regex = /<span class="text-size--xxlarge text-weight--medium">([\s ]+)?([0-9\.]+,[0-9]+)([\s ]+)?<\/span>/gmi;
+            regex = /<meta itemprop="price" content="(?<price>\d+[\.,]\d+)" \/>/gmi;
 
             match = regex.exec(body);
-            if(match == null || match[2] ===undefined) {
-                callback("ERROR can not get current price");
+            if(match == null || match[1] ===undefined) {
+                callback("ERROR can not get current price (getIsinData)");
                 return;
             }
+            IsinData.currentData.price = match[1];
+            IsinData.currentData.price = IsinData.currentData.price.replace(".",",");
+        }else{
+            IsinData.currentData.price = match[2];
         }
-        IsinData.currentData.price = match[2];
         console.log("IsinData.currentData.price: "+IsinData.currentData.price);
 
         callback(null,IsinData);
@@ -238,15 +242,19 @@ function getIsinDataWithMarket(IsinData,callback) {
 
         match = regex.exec(body);
         if(match == null || match[2] ===undefined){
-            regex = /<span class="text-size--xxlarge text-weight--medium">([\s ]+)?([0-9\.]+,[0-9]+)([\s ]+)?<\/span>/gmi;
+            // old regex = /<span class="text-size--xxlarge text-weight--medium">([\s ]+)?([0-9\.]+,[0-9]+)([\s ]+)?<\/span>/gmi;
+            regex = /<meta itemprop="price" content="(?<price>\d+[\.,]\d+)" \/>/gmi;
 
             match = regex.exec(body);
-            if(match == null || match[2] ===undefined) {
-                callback("ERROR can not get current price");
+            if(match == null || match[1] ===undefined) {
+                callback("ERROR can not get current price (getIsinDataWithMarket)");
                 return;
             }
+            IsinData.currentData.price = match[1];
+            IsinData.currentData.price = IsinData.currentData.price.replace(".",",");
+        }else{
+            IsinData.currentData.price = match[2];
         }
-        IsinData.currentData.price = match[2];
         console.log("IsinData.currentData.price: "+IsinData.currentData.price);
 
         callback(null,IsinData);
