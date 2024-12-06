@@ -12,7 +12,7 @@
     "dateformat": "^3.0.3",
     "express": "^4.16.4",
     "formidable": "^1.2.1",
-    "papaparse": "^4.6.3",
+    "papaparse": "^5.3.0",
     "request": "^2.88.0"
   }
 }
